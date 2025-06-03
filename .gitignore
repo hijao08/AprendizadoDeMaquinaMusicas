@@ -1,5 +1,7 @@
 # Ambiente virtual
 venv/
+venv-py13/
+venv-py12/
 env/
 ENV/
 
