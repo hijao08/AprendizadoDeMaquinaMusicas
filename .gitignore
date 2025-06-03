@@ -24,9 +24,6 @@ build/
 Thumbs.db
 
 # Arquivos de dados grandes
-*.csv
-*.json
-*.zip
 
 # Arquivos de resultados
 results/figures/*.png 
