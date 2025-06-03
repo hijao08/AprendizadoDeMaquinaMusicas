@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 Análise Exploratória do Dataset "Top 100 Songs & Lyrics By Year (1959-2023)"
 Foco: Detecção de conteúdo inapropriado (racismo, homofobia, discurso de ódio, preconceito)
@@ -50,13 +47,13 @@ TERMOS_SENSIVEIS = {
         'jungle bunny', 'porch monkey', 'sambo', 'pickaninny', 'tar baby',
         'redskin', 'towelhead', 'sand nigger', 'camel jockey', 'oreo',
         # novos termos antigos ou pouco mapeados
-        'darkie', 'half-breed', 'injun', 'boy' , 'yellow', 'mulatto', 'negroid', 'ape', 
+        'darkie', 'half-breed', 'injun', 'black', 'black boy' , 'yellow', 'mulatto', 'negroid', 'ape', 
         'colored', 'negro', 'monkey', 'spear chucker', 'uncle tom'
     ],
     'homofobia': [
         'fag', 'faggot', 'dyke', 'queer', 'homo', 'fairy', 'butch', 'tranny',
         'no homo', 'sissy', 'pillow biter', 'bender', 'fruitcake', 'fudge packer',
-        'he-she', 'ladyboy', 'gender bender', 'nancy boy', 'manlover', 'fenboy', 
+        'he-she', 'ladyboy', 'gender bender', 'nancy boy', 'manlover', 'femboy', 
         'fagboy', 'fagboyz',
         # adicionais antigos
         'limp wrist', 'light in the loafers', 'pansy', 'poof', 'poofter', 'nelly',
@@ -141,24 +138,6 @@ def analise_temporal(df):
         plt.close()
     except Exception as e:
         print(f"Erro na análise temporal: {e}")
-
-def analise_tamanho_letras(df):
-    """Analisa o tamanho das letras das músicas"""
-    try:
-        # Calcula o número de palavras por letra
-        df['num_palavras'] = df['Lyrics'].str.split().str.len()
-        
-        plt.figure(figsize=(12, 6))
-        sns.histplot(data=df, x='num_palavras', bins=50)
-        plt.title('Distribuição do Tamanho das Letras (Número de Palavras)')
-        plt.xlabel('Número de Palavras')
-        plt.ylabel('Frequência')
-        plt.tight_layout()
-        plt.savefig(os.path.join(RESULTS_DIR, 'tamanho_letras.png'))
-        plt.close()
-    except Exception as e:
-        print(f"Erro na análise do tamanho das letras: {e}")
-        
 
 def conta_termos(texto, termos):
     """Conta quantos termos aparecem em um texto (forma precisa usando regex com bordas de palavra)."""
@@ -263,7 +242,6 @@ def main():
     # Realiza as análises
     analise_basica(df)
     analise_temporal(df)
-    analise_tamanho_letras(df)
     analise_termos_sensiveis(df)
     analise_palavras_frequentes(df)
     
