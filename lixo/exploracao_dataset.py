@@ -18,8 +18,8 @@ import sys
 
 # Configurações iniciais
 warnings.filterwarnings('ignore')
-plt.style.use('seaborn-v0_8')  # Versão específica do estilo seaborn
-sns.set_theme()  # Usando o tema padrão do seaborn
+plt.style.use('seaborn-v0_8')
+sns.set_theme()
 
 # Configuração de diretórios
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
