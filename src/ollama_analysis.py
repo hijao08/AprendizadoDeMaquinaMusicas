@@ -11,7 +11,6 @@ class OllamaAnalyzer:
 
     def analyze_text(self, text: str, prompt: str) -> Optional[Dict[str, Any]]:
         try:
-            # Trunca letras muito longas (2.000 caracteres máx)
             if len(text) > 2000:
                 text = text[:2000]
 
@@ -34,6 +33,7 @@ class OllamaAnalyzer:
 def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
     print("\nColunas disponíveis no dataset:")
     print(df.columns.tolist())
+    csv_classificado_manual = pd.read_csv('data/30-musicas-Mozart.csv')
 
     coluna_titulo = 'Song Title'
     coluna_artista = 'Artist'
@@ -59,17 +59,6 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
     - Cite sempre o trecho da letra que motivou o score e relacione ao critério.
     - Ignore ambiguidades não relacionadas a toxicidade relacional ou gênero.
     - Use os campos: score, emotional_abuse, jealousy_possessive, dependency, objectification, violence_or_betrayal, justificativa.
-
-    **Exemplo de saída:**
-    {
-    "score": 0.3,
-    "emotional_abuse": false,
-    "jealousy_possessive": false,
-    "dependency": true,
-    "objectification": false,
-    "violence_or_betrayal": false,
-    "justificativa": "Trecho: 'I'll be a fool for you'. Indica dependência emocional, mas sem manipulação explícita."
-    }
     """
 
     analyzer = OllamaAnalyzer()
@@ -120,7 +109,7 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     try:
-        df = pd.read_csv("data/teste.csv")
+        df = pd.read_csv("data/all_songs_data.csv")
     except Exception as e:
         print(f"Erro ao carregar o dataset: {e}")
         return
