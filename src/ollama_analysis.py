@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 class OllamaAnalyzer:
-    def __init__(self, model: str = "mistral:instruct"):
+    def __init__(self, model: str = "deepseek-r1:8b"):
         self.model = model
         self.exemplos_manuais = []
 
@@ -22,10 +22,10 @@ class OllamaAnalyzer:
         """Gera o prompt completo incluindo os exemplos de classificação manual"""
         prompt_completo = prompt_base + "\n\n=== EXEMPLOS DE REFERÊNCIA ===\n"
         prompt_completo += "Analise cuidadosamente os seguintes exemplos já classificados. Eles devem servir como base para suas próximas classificações.\n"
-        
-        for exemplo in self.exemplos_manuais[:5]:
+
+        for exemplo in self.exemplos_manuais:
             prompt_completo += "\n---\nEXEMPLO DE CLASSIFICAÇÃO:\n"
-            prompt_completo += f"Letra:\n{exemplo['letra'][:800]}...\n\n"  # Aumentei o limite de caracteres
+            prompt_completo += f"Letra:\n{exemplo['letra']}\n\n"
             prompt_completo += f"Nivel de toxicidade: {exemplo['score']}\n"
             prompt_completo += f"Justificativa: {exemplo['justificativa']}\n"
             prompt_completo += "---\n"
@@ -84,10 +84,6 @@ class OllamaAnalyzer:
 
     def analyze_text(self, text: str, prompt: str) -> Optional[Dict[str, Any]]:
         try:
-            if len(text) > 2000:
-                text = text[:2000]
-
-            # Sempre usa os exemplos, não mais condicional
             full_prompt = f"{self.gerar_prompt_com_exemplos(prompt)}\n\nAGORA ANALISE ESTA LETRA:\n{text}"
 
             response = ollama.generate(
@@ -239,7 +235,7 @@ def main():
 
     print("\nAnalisando músicas para conteúdo tóxico em relacionamentos")
     print("=" * 60)
-    print("Modelo em uso: mistral:instruct")
+    print("Modelo em uso: deepseek-r1:8b")
     print("=" * 60)
 
     resultados_df = analise_conteudo_toxico(df)
