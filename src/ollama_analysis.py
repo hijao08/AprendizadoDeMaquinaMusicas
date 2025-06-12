@@ -10,7 +10,7 @@ class OllamaAnalyzer:
         self.model = model
         self.exemplos_manuais = []
 
-    def add_exemplo_manual(self, letra: str, score: float, justificativa: str):
+    def add_exemplo_manual(self, letra: str, score: str, justificativa: str):
         """Adiciona um exemplo de classificação manual para aprendizado"""
         self.exemplos_manuais.append({
             "letra": letra,
@@ -20,14 +20,17 @@ class OllamaAnalyzer:
 
     def gerar_prompt_com_exemplos(self, prompt_base: str) -> str:
         """Gera o prompt completo incluindo os exemplos de classificação manual"""
-        prompt_completo = prompt_base + "\n\n**Exemplos de classificação:**\n"
+        prompt_completo = prompt_base + "\n\n=== EXEMPLOS DE REFERÊNCIA ===\n"
+        prompt_completo += "Analise cuidadosamente os seguintes exemplos já classificados. Eles devem servir como base para suas próximas classificações.\n"
         
-        for exemplo in self.exemplos_manuais[:3]:  # Limitamos a 3 exemplos para não sobrecarregar
-            prompt_completo += f"\nLetra:\n{exemplo['letra'][:500]}...\n"  # Limitamos o tamanho da letra
-            prompt_completo += f"Score: {exemplo['score']}\n"
+        for exemplo in self.exemplos_manuais[:5]:
+            prompt_completo += "\n---\nEXEMPLO DE CLASSIFICAÇÃO:\n"
+            prompt_completo += f"Letra:\n{exemplo['letra'][:800]}...\n\n"  # Aumentei o limite de caracteres
+            prompt_completo += f"Nivel de toxicidade: {exemplo['score']}\n"
             prompt_completo += f"Justificativa: {exemplo['justificativa']}\n"
-            prompt_completo += "-" * 50 + "\n"
+            prompt_completo += "---\n"
         
+        prompt_completo += "\nAgora, use esses exemplos como referência para classificar a próxima música de forma similar.\n"
         return prompt_completo
 
     def parse_response(self, response: str) -> Dict[str, Any]:
@@ -38,35 +41,44 @@ class OllamaAnalyzer:
         except json.JSONDecodeError:
             # Se falhar, tenta extrair os campos do texto
             result = {
-                "score": 0.0,
-                "emotional_abuse": False,
-                "jealousy_possessive": False,
-                "dependency": False,
-                "objectification": False,
-                "violence_or_betrayal": False,
-                "justification": ""
+                "nivel_toxicidade": "NA",
+                "abuso_emocional": False,
+                "ciume_possessividade": False,
+                "dependencia": False,
+                "objetificacao": False,
+                "violencia_traicao": False,
+                "justificativa": ""
             }
             
             lines = response.split('\n')
             for line in lines:
                 line = line.strip().lower()
-                if line.startswith('score:'):
-                    try:
-                        result['score'] = float(line.split(':')[1].strip())
-                    except:
-                        pass
-                elif line.startswith('emotional_abuse:'):
-                    result['emotional_abuse'] = 'yes' in line.lower() or 'true' in line.lower()
-                elif line.startswith('jealousy_possessive:'):
-                    result['jealousy_possessive'] = 'yes' in line.lower() or 'true' in line.lower()
-                elif line.startswith('dependency:'):
-                    result['dependency'] = 'yes' in line.lower() or 'true' in line.lower()
-                elif line.startswith('objectification:'):
-                    result['objectification'] = 'yes' in line.lower() or 'true' in line.lower()
-                elif line.startswith('violence_or_betrayal:'):
-                    result['violence_or_betrayal'] = 'yes' in line.lower() or 'true' in line.lower()
-                elif line.startswith('justificativa:') or line.startswith('justification:'):
-                    result['justification'] = line.split(':', 1)[1].strip()
+                if line.startswith('nivel de toxicidade:'):
+                    nivel = line.split(':')[1].strip()
+                    if 'muito baixo' in nivel:
+                        result['nivel_toxicidade'] = 'muito baixo'
+                    elif 'baixo' in nivel:
+                        result['nivel_toxicidade'] = 'baixo'
+                    elif 'moderado' in nivel:
+                        result['nivel_toxicidade'] = 'moderado'
+                    elif 'alto' in nivel:
+                        result['nivel_toxicidade'] = 'alto'
+                    elif 'muito alto' in nivel:
+                        result['nivel_toxicidade'] = 'muito alto'
+                    else:
+                        result['nivel_toxicidade'] = 'na'
+                elif line.startswith('abuso_emocional:'):
+                    result['abuso_emocional'] = 'yes' in line.lower() or 'true' in line.lower()
+                elif line.startswith('ciume_possessividade:'):
+                    result['ciume_possessividade'] = 'yes' in line.lower() or 'true' in line.lower()
+                elif line.startswith('dependencia:'):
+                    result['dependencia'] = 'yes' in line.lower() or 'true' in line.lower()
+                elif line.startswith('objetificacao:'):
+                    result['objetificacao'] = 'yes' in line.lower() or 'true' in line.lower()
+                elif line.startswith('violencia_traicao:'):
+                    result['violencia_traicao'] = 'yes' in line.lower() or 'true' in line.lower()
+                elif line.startswith('justificativa:'):
+                    result['justificativa'] = line.split(':', 1)[1].strip()
             
             return result
 
@@ -75,19 +87,16 @@ class OllamaAnalyzer:
             if len(text) > 2000:
                 text = text[:2000]
 
-            # Gera o prompt completo com exemplos se houver exemplos manuais
-            if self.exemplos_manuais:
-                full_prompt = f"{self.gerar_prompt_com_exemplos(prompt)}\n\nAgora analise esta letra:\n{text}"
-            else:
-                full_prompt = f"{prompt}\n\nLyrics:\n{text}"
+            # Sempre usa os exemplos, não mais condicional
+            full_prompt = f"{self.gerar_prompt_com_exemplos(prompt)}\n\nAGORA ANALISE ESTA LETRA:\n{text}"
 
             response = ollama.generate(
                 model=self.model,
                 prompt=full_prompt,
                 options={
-                    'temperature': 0.1,
-                    'num_ctx': 2048,
-                    'num_predict': 200
+                    'temperature': 0.1,  # Mantém baixo para consistência
+                    'num_ctx': 4096,     # Aumentei o contexto para caber mais exemplos
+                    'num_predict': 1000   # Aumentei para respostas mais detalhadas
                 }
             )
             
@@ -108,13 +117,13 @@ def carregar_exemplos_manuais(analyzer: OllamaAnalyzer, csv_path: str):
         for idx, row in df_manual.iterrows():
             try:
                 letra = row['Letra'] if 'Letra' in df_manual.columns else None
-                score = row['Pontuacao_manual'] if 'Pontuacao_manual' in df_manual.columns else None
+                nivel = row['Pontuacao_manual'] if 'Pontuacao_manual' in df_manual.columns else None
                 justificativa = row['Justificativa'] if 'Justificativa' in df_manual.columns else None
                 
-                if letra is not None and score is not None:
+                if letra is not None and nivel is not None:
                     analyzer.add_exemplo_manual(
                         letra=letra,
-                        score=float(score),
+                        score=nivel,
                         justificativa=str(justificativa) if justificativa is not None else ""
                     )
             except Exception as e:
@@ -135,38 +144,42 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
     coluna_ano = 'Year'
 
     prompt = """
-    Você é um especialista em análise crítica de letras de músicas. 
-    Avalie se letras em inglês contêm temas que incitam, 
-    normalizam ou validam comportamentos tóxicos em relacionamentos,
-    aprenda com o exemplo das musicas que classifiquei manualmente e classifique as musicas conforme os critérios abaixo:
+    Você é um especialista em análise crítica de letras de músicas, focado em identificar elementos tóxicos em relacionamentos amorosos.
 
-    **Critérios:**
-    - Normalização de controle, ciúmes ou possessividade como sinais de amor.
-    - Romantização de abuso no contexto de relacionamentos.
-    - Incentivo a permanecer em relações prejudiciais por amor, destino ou paixão.
-    - Reforço de papéis de gênero rígidos, submissão ou dominação no contexto de relacionamentos.
-    - Narrativas que culpam a vítima ou desconsideram consentimento no contexto de relacionamentos.
-    - Glorificação de dependência emocional/financeira como prova de amor no contexto de relacionamentos.
-    - Linguagem que retrata obsessão como paixão ("I can't live without you") no contexto de relacionamentos.
-    - Justifique com trechos de amor e abuso no contexto de relacionamentos.
+    1. OBJETIVO:
+    Analisar letras de músicas e avaliar se elas contêm temas que incitam, normalizam ou validam comportamentos tóxicos em relacionamentos.
 
-    **Instruções:**
-    - Caso a letra não seja sobre relacionamentos, retorne score 0.0.
-    - O Score é uma escala de 0.0 a 1.0.
-    - Só atribua score > 0.0 se houver clara evidência de um dos critérios acima.
-    - Não penalize expressões comuns de afeto, desejo ou solidão, exceto se associadas a manipulação, controle ou submissão.
-    - Cite sempre o trecho da letra que motivou o score e relacione ao critério.
-    - Ignore ambiguidades não relacionadas a toxicidade relacional ou gênero.
-    - Use os campos: score, emotional_abuse, jealousy_possessive, dependency, objectification, violence_or_betrayal, justificativa.
+    2. NÍVEIS DE TOXICIDADE:
+    [muito alto] - Múltiplos elementos tóxicos graves
+    [alto] - Elementos tóxicos significativos
+    [moderado] - Alguns elementos problemáticos
+    [baixo] - Poucos elementos questionáveis
+    [muito baixo] - Elementos mínimos ou ambíguos
+    [na] - Sem elementos tóxicos identificáveis
 
-    Responda APENAS com esses campos, um por linha, sem texto adicional:
-    score: [número entre 0.0 e 1.0]
-    emotional_abuse: [yes/no]
-    jealousy_possessive: [yes/no]
-    dependency: [yes/no]
-    objectification: [yes/no]
-    violence_or_betrayal: [yes/no]
-    justificativa: [explicação detalhada citando trechos]
+    3. ELEMENTOS A IDENTIFICAR:
+    • Dependência Emocional: necessidade excessiva do outro, incapacidade de ficar sozinho
+    • Ciúme/Possessividade: controle, posse, restrição da liberdade do outro
+    • Violência: física, psicológica, ameaças, intimidação
+    • Manipulação/Abuso Emocional: gaslighting, chantagem, culpabilização
+    • Objetificação: redução da pessoa a objeto sexual ou de posse
+    • Submissão Tóxica: anulação de si, aceitação de maus-tratos
+
+    4. FORMATO DA RESPOSTA:
+    Nivel de toxicidade: [na/muito baixo/baixo/moderado/alto/muito alto]
+    abuso_emocional: [yes/no]
+    ciume_possessividade: [yes/no]
+    dependencia: [yes/no]
+    objetificacao: [yes/no]
+    violencia_traicao: [yes/no]
+    justificativa: [Cite trechos específicos da letra e explique como eles se relacionam com cada elemento tóxico identificado]
+
+    5. REGRAS IMPORTANTES:
+    • SEMPRE cite trechos específicos da letra para justificar sua classificação
+    • Se não encontrar NENHUM dos elementos tóxicos listados, classifique como "na"
+    • Não penalize expressões normais de amor, saudade ou desejo
+    • Considere o contexto geral da letra, não apenas frases isoladas
+    • Para práticas BDSM/submissão, só considere tóxico se claramente não consensual
     """
 
     analyzer = OllamaAnalyzer()
@@ -189,18 +202,18 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
                     "titulo": row[coluna_titulo],
                     "artista": row[coluna_artista],
                     "ano": row[coluna_ano] if coluna_ano in df.columns else None,
-                    "score": result.get("score", 0.0),
-                    "emotional_abuse": result.get("emotional_abuse", False),
-                    "jealousy_possessive": result.get("jealousy_possessive", False),
-                    "dependency": result.get("dependency", False),
-                    "objectification": result.get("objectification", False),
-                    "violence_or_betrayal": result.get("violence_or_betrayal", False),
-                    "justificativa": result.get("justification", "")
+                    "nivel_toxicidade": result.get("nivel_toxicidade", "NA"),
+                    "abuso_emocional": result.get("abuso_emocional", False),
+                    "ciume_possessividade": result.get("ciume_possessividade", False),
+                    "dependencia": result.get("dependencia", False),
+                    "objetificacao": result.get("objetificacao", False),
+                    "violencia_traicao": result.get("violencia_traicao", False),
+                    "justificativa": result.get("justificativa", "")
                 })
 
-                print(f"→ Score: {result.get('score', 0)}")
+                print(f"→ Nível de toxicidade: {result.get('nivel_toxicidade', 'NA')}")
 
-                # Salva a cada 50 análises
+                # Salva a cada 5 análises
                 if (idx + 1) % 5 == 0:
                     parcial_path = f"results/parcial_{idx + 1}.csv"
                     pd.DataFrame(resultados).to_csv(parcial_path, index=False)
@@ -215,7 +228,10 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     try:
-        print("\n📊 Carregando dataset...")
+        print("\n📊 Carregando dataset de músicas classificadas...")
+        df_manual = pd.read_csv("data/30-musicas-Mozart.csv")
+        
+        print("\n📊 Carregando dataset de músicas para análise...")
         df = pd.read_csv("data/30musicas.csv")
     except Exception as e:
         print(f"Erro ao carregar o dataset: {e}")
@@ -244,10 +260,20 @@ def main():
     print(f"Resultados salvos em:\n→ CSV: {csv_path}\n→ JSON: {json_path}")
     print(f"\nEstatísticas:")
     print(f"→ Total analisado: {len(resultados_df)}")
-    print(f"→ Média score: {resultados_df['score'].mean():.2f}")
-    print(f"→ Máximo: {resultados_df['score'].max():.2f}")
-    print(f"→ Mínimo: {resultados_df['score'].min():.2f}")
-    print(f"→ Músicas com conteúdo tóxico (score > 0.5): {len(resultados_df[resultados_df['score'] > 0.5])}")
+    
+    # Contagem por nível de toxicidade
+    niveis = resultados_df['nivel_toxicidade'].value_counts()
+    print("\nDistribuição por nível de toxicidade:")
+    for nivel, count in niveis.items():
+        print(f"→ {nivel}: {count} músicas ({(count/len(resultados_df)*100):.1f}%)")
+    
+    # Contagem de elementos tóxicos
+    print("\nPrevalência de elementos tóxicos:")
+    print(f"→ Abuso emocional: {resultados_df['abuso_emocional'].sum()} músicas")
+    print(f"→ Ciúme/possessividade: {resultados_df['ciume_possessividade'].sum()} músicas")
+    print(f"→ Dependência: {resultados_df['dependencia'].sum()} músicas")
+    print(f"→ Objetificação: {resultados_df['objetificacao'].sum()} músicas")
+    print(f"→ Violência/traição: {resultados_df['violencia_traicao'].sum()} músicas")
 
 if __name__ == "__main__":
     main()
