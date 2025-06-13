@@ -88,11 +88,11 @@ class OllamaAnalyzer:
                         
                 elif line_lower.startswith('abuso_emocional:'):
                     val = line_clean.split(':', 1)[1].strip().lower()
-                    result['abuso_emocional'] = 'yes' in val or 'sim' in val or 'true' in val
+                    result['abuso_emocional'] = 'true' in val or 'yes' in val or 'sim' in val
                     
                 elif line_lower.startswith('ciume_possessividade:'):
                     val = line_clean.split(':', 1)[1].strip().lower()
-                    result['ciume_possessividade'] = 'yes' in val or 'sim' in val or 'true' in val
+                    result['ciume_possessividade'] = 'true' in val or 'yes' in val or 'sim' in val
                     
                 elif line_lower.startswith('dependencia:') or line_lower.startswith('dependência:'):
                     val = line_clean.split(':', 1)[1].strip().lower()
@@ -149,11 +149,13 @@ class OllamaAnalyzer:
                     model=self.model,
                     prompt=full_prompt,
                     options={
-                        'temperature': 0.1,  # Consistência
+                        'temperature': 0.3,  # Consistência
                         'num_ctx': 8192,     # Contexto maior
-                        'num_predict': 1500, # Mais tokens para resposta
-                        'top_p': 0.9,        # Controle de criatividade
-                        'repeat_penalty': 1.1  # Evita repetição
+                        'num_predict': 800,        # Redução para respostas mais focadas
+                        'top_p': 0.7,              # Mais foco nas opções mais relevantes
+                        'repeat_penalty': 1.2,     # Penalidade maior contra repetições
+                        'top_k': 40,               # Novo parâmetro para limitar escolhas léxicas
+                        'seed': 42                 # Reprodutibilidade
                     }
                 )
                 
@@ -211,46 +213,109 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
     coluna_ano = 'Year'
 
     prompt = """
-    Você é um especialista em análise crítica de letras de músicas. Sua tarefa é identificar elementos tóxicos em relacionamentos amorosos.
-
-    REGRAS OBRIGATÓRIAS:
-    1. VOCÊ DEVE responder EXATAMENTE no formato especificado abaixo
-    2. VOCÊ DEVE classificar cada música em um único nível de toxicidade
-    3. VOCÊ DEVE citar trechos específicos da letra quando aplicável
-    4. **SE TODOS os elementos forem marcados como "no", o Nível de Toxicidade OBRIGATORIAMENTE deve ser "na"**
-
+    Você é um crítico especializado em análise de letras de músicas, focado em identificar e classificar elementos tóxicos em relacionamentos amorosos descritos nas letras.
+    Sua tarefa é analisar a letra fornecida e responder EXATAMENTE no formato especificado abaixo, sem adicionar, omitir ou alterar campos, e seguindo rigorosamente as regras.
+    
     NÍVEIS DE TOXICIDADE (escolha UM):
-    • muito alto - Múltiplos elementos tóxicos graves
-    • alto - Elementos tóxicos significativos  
-    • moderado - Alguns elementos problemáticos
-    • baixo - Poucos elementos questionáveis
-    • muito baixo - Elementos mínimos ou ambíguos
-    • na - Sem elementos tóxicos (amor saudável, saudade normal)
+    muito alto - Múltiplos elementos tóxicos graves
+    alto - Elementos tóxicos significativos
+    moderado - Alguns elementos tóxicos problemáticos
+    baixo - Poucos elementos tóxicos questionáveis
+    muito baixo - Elementos tóxicos mínimos ou ambíguos
+    na - Sem elementos tóxicos
 
     ELEMENTOS TÓXICOS A IDENTIFICAR:
-    • abuso_emocional: gaslighting, chantagem, manipulação, culpabilização
-    • ciume_possessividade: controle, posse, restrição da liberdade
-    • dependencia: necessidade excessiva, incapacidade de ficar sozinho
-    • objetificacao: redução a objeto sexual/de posse
-    • violencia_traicao: violência física/psicológica, ameaças
+    abuso_emocional: gaslighting, chantagem, manipulação, culpabilização
+    ciume_possessividade: controle, posse, restrição da liberdade
+    dependencia: necessidade excessiva, incapacidade de ficar sozinho
+    objetificacao: redução a objeto sexual/de posse
+    violencia_traicao: violência física/psicológica, ameaças
 
-    REGRA IMPORTANTE:
-    ⚠️ Se TODOS os campos abaixo forem "no", o Nível de Toxicidade DEVE ser "na".
+    REGRAS OBRIGATÓRIAS:
+    - Primeiro, verifique se a música trata de relacionamento amoroso ou tóxico. Se NÃO tratar, o Nível de Toxicidade DEVE ser "na".
+    - Se TODOS os campos abaixo forem "false", o Nível de Toxicidade DEVE ser "na".
+    - Use apenas "true" ou "false" para os campos booleanos.
+    - Na justificativa, cite trechos específicos da letra se houver elementos tóxicos.
+    - Se não houver elementos tóxicos, escreva exatamente: "nenhum elemento tóxico identificado".
+    - Não penalize amor normal, saudade ou desejo saudável.
+    - Para BDSM, só considere tóxico se claramente não consensual.
+    - Responda apenas no formato abaixo, sem comentários extras.
 
-    FORMATO OBRIGATÓRIO DA RESPOSTA (copie exatamente):
-    Nivel de toxicidade: [sua escolha aqui]
-    abuso_emocional: [yes ou no]
-    ciume_possessividade: [yes ou no] 
-    dependencia: [yes ou no]
-    objetificacao: [yes ou no]
-    violencia_traicao: [yes ou no]
+    FORMATO OBRIGATÓRIO DA RESPOSTA:
+    Nivel de toxicidade: [muito alto|alto|moderado|baixo|muito baixo|na]
+    abuso_emocional: [true|false]
+    ciume_possessividade: [true|false]
+    dependencia: [true|false]
+    objetificacao: [true|false]
+    violencia_traicao: [true|false]
     justificativa: [cite trechos específicos e explique OU escreva "nenhum elemento tóxico identificado"]
 
-   IMPORTANTE:
-    - Se todos os elementos forem "no", o nível de toxicidade **deve** ser "na"
-    - Se algum elemento for "yes", você deve obrigatoriamente justificar com trechos da letra
-    - Não penalize amor normal, saudade ou desejo saudável
-    - Para BDSM, só considere tóxico se claramente não consensual
+    Exemplos de resposta para cada nível de toxicidade:
+    Sem elementos tóxicos:
+    Nivel de toxicidade: na
+    abuso_emocional: false
+    ciume_possessividade: false
+    dependencia: false
+    objetificacao: false
+    violencia_traicao: false
+    justificativa: nenhum elemento tóxico identificado
+
+    Muito baixo:
+    Nivel de toxicidade: muito baixo
+    abuso_emocional: false
+    ciume_possessividade: false
+    dependencia: true
+    objetificacao: false
+    violencia_traicao: false
+    justificativa: "Não posso viver sem você" — expressa dependência leve, mas pode ser apenas uma hipérbole romântica.
+
+    Baixo:
+    Nivel de toxicidade: baixo
+    abuso_emocional: false
+    ciume_possessividade: true
+    dependencia: false
+    objetificacao: false
+    violencia_traicao: false
+    justificativa: "Me avisa quando sair, quero saber onde vai" — demonstra um leve controle, mas sem agressividade.
+
+    Moderado:
+    Nivel de toxicidade: moderado
+    abuso_emocional: true
+    ciume_possessividade: false
+    dependencia: true
+    objetificacao: false
+    violencia_traicao: false
+    justificativa: "Você me faz sentir culpado por tudo" (abuso emocional); "Eu fui longe demais por você" (dependência emocional).
+
+
+    Alto:
+    Nivel de toxicidade: alto
+    abuso_emocional: true
+    ciume_possessividade: true
+    dependencia: false
+    objetificacao: false
+    violencia_traicao: false
+    justificativa: "Por sua causa não uso mais batom, rasguei meu short curto" (controle e manipulação); "Você tem que ser só minha" (posse).
+
+    Muito alto:
+    Nivel de toxicidade: muito alto
+    abuso_emocional: true
+    ciume_possessividade: true
+    dependencia: true
+    objetificacao: true
+    violencia_traicao: true
+    justificativa: "Ele me bate, mas a sensação é de um beijo" (violência física romantizada); "Você só existe para me satisfazer" (objetificação); "Se me deixar, não respondo por mim" (ameaça); "Você nunca vai escapar de mim" (controle extremo); "Sem você eu não sou nada" (dependência extrema).
+    
+    Exemplo de música sem relação com relacionamento amoroso:
+    Nivel de toxicidade: na
+    abuso_emocional: false
+    ciume_possessividade: false
+    dependencia: false
+    objetificacao: false
+    violencia_traicao: false
+    justificativa: nenhum elemento tóxico identificado
+    
+    LEMBRE-SE A CLASSIFICAÇÃO DEVE SER FEITA COM BASE NO RELACIONAMENTO AMOROSO, SE A MUSICA NAO TRATAR DE RELACIONAMENTO AMOROSO, O NIVEL DE TOXICIDADE DEVE SER "NA".
     """
 
     analyzer = OllamaAnalyzer()
@@ -306,7 +371,7 @@ def main():
         df_manual = pd.read_csv("../data/30-musicas-Mozart.csv")
         
         print("\n📊 Carregando dataset de músicas para análise...")
-        df = pd.read_csv("../data/all_songs_data.csv")
+        df = pd.read_csv("../data/30musicas.csv")
     except Exception as e:
         print(f"Erro ao carregar o dataset: {e}")
         return
