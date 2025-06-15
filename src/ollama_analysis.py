@@ -352,7 +352,7 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
 
                 print(f"→ Nível de toxicidade: {result.get('nivel_toxicidade', 'NA')}")
 
-                # Salva a cada 5 análises
+                # Salva a cada 100 análises
                 if (idx + 1) % 100 == 0:
                     parcial_path = f"results/parcial_{idx + 1}.csv"
                     pd.DataFrame(resultados).to_csv(parcial_path, index=False)
