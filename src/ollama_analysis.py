@@ -315,7 +315,7 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
     violencia_traicao: false
     justificativa: nenhum elemento tóxico identificado
     
-    LEMBRE-SE A CLASSIFICAÇÃO DEVE SER FEITA COM BASE NO RELACIONAMENTO AMOROSO, SE A MUSICA NAO TRATAR DE RELACIONAMENTO AMOROSO, O NIVEL DE TOXICIDADE DEVE SER "NA".
+    LEMBRE-SE A CLASSIFICAÇÃO DEVE SER FEITA COM BASE NO RELACIONAMENTO AMOROSO, SE A MUSICA NAO TRATAR DE RELACIONAMENTO AMOROSO, O NIVEL DE TOXICIDADE DEVE SER "NA" E CASO TENHA ALGO RELACIONADO A RELACIONAMENTO TOXICO OS NIVEIS DE TOXICIDADE DEVE SER "MUITO BAIXO", "BAIXO", "MODERADO", "ALTO" OU "MUITO ALTO".
     """
 
     analyzer = OllamaAnalyzer()
@@ -353,7 +353,7 @@ def analise_conteudo_toxico(df: pd.DataFrame) -> pd.DataFrame:
                 print(f"→ Nível de toxicidade: {result.get('nivel_toxicidade', 'NA')}")
 
                 # Salva a cada 5 análises
-                if (idx + 1) % 5 == 0:
+                if (idx + 1) % 100 == 0:
                     parcial_path = f"results/parcial_{idx + 1}.csv"
                     pd.DataFrame(resultados).to_csv(parcial_path, index=False)
                     print(f"[Salvo parcial em: {parcial_path}]")
@@ -371,7 +371,7 @@ def main():
         df_manual = pd.read_csv("../data/30-musicas-Mozart.csv")
         
         print("\n📊 Carregando dataset de músicas para análise...")
-        df = pd.read_csv("../data/30musicas.csv")
+        df = pd.read_csv("../data/all_songs_data.csv")
     except Exception as e:
         print(f"Erro ao carregar o dataset: {e}")
         return
